@@ -54,7 +54,6 @@ http://ww1.microchip.com/downloads/en/Appnotes/TB3214-Getting-Started-with-TCB-9
 to run the Every at 20 MHz, add the lines below to the nona4809 section of the boards.txt file
 in %LOCALAPPDATA%\Arduino15\packages\arduino\hardware\megaavr\1.8.5.
 they add the sub menu 'Tools | Clock' to choose between 16MHz and 20MHz.
-
 menu.clock=Clock
 nona4809.menu.clock.16internal=16MHz
 nona4809.menu.clock.16internal.build.f_cpu=16000000L
