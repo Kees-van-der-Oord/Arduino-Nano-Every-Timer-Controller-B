@@ -10,18 +10,18 @@ usage:
 #define Timer1 TimerB0    // use TimerB0 as a drop in replacement for Timer1\
 #else // assume architecture supported by TimerOne ....\
 #include "TimerOne.h"\
-#endif\
+#endif
 
 // code below will now work both on the MegaAVR and AVR processors\
 void setup() {\
   Timer1.initialize();\
   Timer1.attachInterrupt(myisr);\
   Timer1.setPeriod(1000000);     // like the TimerOne library this will start the timer as well\
-}\
+}
 
 void myisr() {\
   // do something useful every second	\
-}\
+}
 
 clock source options:\
 The TCB clock source is specified in the initialize() function with default value EveryTimerB_CLOCMODE.\
@@ -71,5 +71,4 @@ function consistent with micros() and millis().\
 to do:\
 there is no range check on the 'period' arguments of setPeriod ...\
 check if it is necessary to set the CNT register to 0 in start()\
-add PWM support\
-\
+add PWM support
