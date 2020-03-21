@@ -5,8 +5,7 @@ The library is tested on the Arduino Nano Every (AtMega4809) with the Arduino 1.
 To add support for the Every activate the 'Arduino MegaAVR' boards module (Tools | Board | Boards Manager)
 
 usage:
-
-#ifdef ARDUINO_ARCH_MEGAAVR
+#ifdef ARDUINO_ARCH_MEGAAVR\
 #include "EveryTimerB.h"
 #define Timer1 TimerB0    // use TimerB0 as a drop in replacement for Timer1
 #else // assume architecture supported by TimerOne ....
