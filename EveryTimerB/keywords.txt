@@ -1,0 +1,37 @@
+#######################################
+# Syntax Coloring Map For Test
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+EveryTimerB	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+initialize	KEYWORD2
+setClockSource	KEYWORD2
+setPeriod	KEYWORD2
+start	KEYWORD2
+stop	KEYWORD2
+isEnabled	KEYWORD2
+attachInterrupt	KEYWORD2
+detachInterrupt	KEYWORD2
+getTimer	KEYWORD2
+getOverflowCounts	KEYWORD2
+getRemainder	KEYWORD2
+getOverflowCounter	KEYWORD2
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+EveryTimerB0
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
