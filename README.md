@@ -1,10 +1,10 @@
-# Arduino EveryTimerB library.
-A drop in replacement for the TimerOne library for the Nano Every.
-EveryTimerB is a library for the TCB timer of the AtMega4809 processor.
-The library is tested on the Arduino Nano Every (AtMega4809) with the Arduino 1.8.12 IDE
-To add support for the Every activate the 'Arduino MegaAVR' boards module (Tools | Board | Boards Manager)
+# Arduino EveryTimerB library.\
+A drop in replacement for the TimerOne library for the Nano Every.\
+EveryTimerB is a library for the TCB timer of the AtMega4809 processor.\
+The library is tested on the Arduino Nano Every (AtMega4809) with the Arduino 1.8.12 IDE\
+To add support for the Every activate the 'Arduino MegaAVR' boards module (Tools | Board | Boards Manager)\
 
-usage:
+usage:\
 #ifdef ARDUINO_ARCH_MEGAAVR\
 #include "EveryTimerB.h"\
 #define Timer1 TimerB0    // use TimerB0 as a drop in replacement for Timer1\
