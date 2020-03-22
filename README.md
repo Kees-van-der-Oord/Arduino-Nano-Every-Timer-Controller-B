@@ -2,7 +2,7 @@
 A drop in replacement for the TimerOne library for the Nano Every.\
 EveryTimerB is a library for the TCB timer of the AtMega4809 processor.\
 The library is tested on the Arduino Nano Every (AtMega4809) with the Arduino 1.8.12 IDE\
-To add support for the Every activate the 'Arduino MegaAVR' boards module (Tools | Board | Boards Manager)\
+To add support for the Every activate the 'Arduino MegaAVR' boards module (Tools | Board | Boards Manager)
 
 # usage:
 #ifdef ARDUINO_ARCH_MEGAAVR\
@@ -29,7 +29,7 @@ define this macro before including this file to use a different default clock mo
 e.g.:\
 #define EveryTimerB_CLOCMODE TCB_CLKSEL_CLKTCA_gc  // 250 kHz ~ 4 us\
 #define EveryTimerB_CLOCMODE TCB_CLKSEL_CLKDIV2_gc //   8 MHz ~ 0.125 us\
-#define EveryTimerB_CLOCMODE TCB_CLKSEL_CLKDIV_gc  //  16 MHz ~ 0.0625 us  \
+#define EveryTimerB_CLOCMODE TCB_CLKSEL_CLKDIV_gc  //  16 MHz ~ 0.0625 us
 
 # timer options:
 The 4809 has one A timer (TCA) and four B timers (TCB).\
@@ -40,14 +40,14 @@ from the EveryTimerB.cpp into your product file and adapt for B1 and B2 timers.\
 It looks like that the Arduino Core is using timer B3 (for what ?) so don't\
 mess with that if you don't want to break something.\
 Note that the Timer B also implements PWM on several pins, so there might be\
-some conflicts there too.  \
+some conflicts there too. 
 
 # for information on the 4809 TCA and TCB timers:
 http://ww1.microchip.com/downloads/en/AppNotes/TB3217-Getting-Started-with-TCA-90003217A.pdf\
 http://ww1.microchip.com/downloads/en/Appnotes/TB3214-Getting-Started-with-TCB-90003214A.pdf\
 %LOCALAPPDATA%\Arduino15\packages\arduino\hardware\megaavr\1.8.5\cores\arduino\wiring.c\
 %LOCALAPPDATA%\Arduino15\packages\arduino\hardware\megaavr\1.8.5\variants\nona4809\variant.c\
-%LOCALAPPDATA%\Arduino15\packages\arduino\tools\avr-gcc\7.3.0-atmel3.6.1-arduino5\avr\include\avr\iom4809.h\
+%LOCALAPPDATA%\Arduino15\packages\arduino\tools\avr-gcc\7.3.0-atmel3.6.1-arduino5\avr\include\avr\iom4809.h
 
 # 20 MHz system clock
 to run the Every at 20 MHz, add the lines below to the nona4809 section of the boards.txt file\
@@ -66,7 +66,7 @@ a factor of 20/16 faster than @ 16Mhz. When comparing the timer periods with mil
 and micros() there is a difference of 0.024 %. I guess this is more a side-effect\
 of the way how the arduino core tries to mimic the 4 us clock for micros().\
 The code below applies the correction factor to make the timer setPeriod()\
-function consistent with micros() and millis().\
+function consistent with micros() and millis().
 
 # to do:
 there is no range check on the 'period' arguments of setPeriod ...\
