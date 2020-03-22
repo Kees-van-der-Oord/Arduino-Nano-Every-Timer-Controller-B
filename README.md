@@ -37,8 +37,8 @@ TCA is used by the arduino core to generate the clock used by millis() and micro
 By default Timer Control B0 is defined as TimerB0 in the EveryTimerB library\
 If you would like to use the TCB1 and TCB2 as well you have to copy the code\
 from the EveryTimerB.cpp into your product file and adapt for B1 and B2 timers.\
-It looks like that the Arduino Core is using timer B3 (for what ?) so don't\
-mess with that if you don't want to break something.\
+The Arduino Core is using timer B3 for millis() and micros() so don't mess with\
+TCB3  if you don't want to break the functionality of these functions.\
 Note that the Timer B also implements PWM on several pins, so there might be\
 some conflicts there too. 
 
@@ -61,12 +61,8 @@ nona4809.menu.clock.20internal=20MHz\
 nona4809.menu.clock.20internal.build.f_cpu=20000000L\
 nona4809.menu.clock.20internal.bootloader.OSCCFG=0x02\
 \
-On 20Mhz, the speed of the TCB gets a little weird. I would expect that it runs\
-a factor of 20/16 faster than @ 16Mhz. When comparing the timer periods with millis()\
-and micros() there is a difference of 0.024 %. I guess this is more a side-effect\
-of the way how the arduino core tries to mimic the 4 us clock for micros().\
-The code below applies the correction factor to make the timer setPeriod()\
-function consistent with micros() and millis().
+On 20Mhz, the milis() and micros() implementation of the arduino core is inaccurate.\
+The functions in MegaAvr20Mhz.h correct for that.
 
 # to do:
 there is no range check on the 'period' arguments of setPeriod ...\
