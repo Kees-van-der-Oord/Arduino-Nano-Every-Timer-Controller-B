@@ -111,8 +111,8 @@ class EveryTimerB
 
     // intialize: sets the timer compare mode and the clock source
     void initialize(TCB_t * timer_ = &TCB0, TCB_CLKSEL_t clockSource = EveryTimerB_CLOCMODE, unsigned long period = 1000000UL) __attribute__((always_inline)) {
-#if F_CPU == 20000000UL
-      corrected20MHzInit(); // see commment in MegaAvr20MHz_h
+#if defined(ARDUINO_ARCH_MEGAAVR) && (F_CPU == 20000000UL)
+		corrected20MHzInit(); // see commment in MegaAvr20MHz_h
 #endif        
       timer = timer_;
       timer->CTRLB = TCB_CNTMODE_INT_gc; // Use timer compare mode
