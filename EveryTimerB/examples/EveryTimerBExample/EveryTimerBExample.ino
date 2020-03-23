@@ -3,6 +3,7 @@
 // see comments in "libraries/EveryTimerB/EveryTimerB.h for more info
 
 #ifdef ARDUINO_ARCH_MEGAAVR
+#define clockCorrection 1.00
 #include "EveryTimerB.h"
 #define Timer1 TimerB0    // use TimerB0 as a drop in replacement for Timer1
 #else
@@ -38,6 +39,7 @@ bool clockEnabled = false;
 // measure the timing to the calls to the isr
 volatile unsigned long isr_counter = 0;
 unsigned long last_tick_us = 0;
+unsigned long last_tick_ms = 0;
 
 #define SHOW_PERIOD_LIMIT 100000UL   // above 10 Hz, just count the number of interrupts per second
 void myisr(void)
@@ -50,15 +52,27 @@ void myisr(void)
   // yes, I know an isr should be quick and not use Serial
   // but, this is a test and no other tasks are running
   // and, it is easily completed before the next interrupt comes
-  unsigned long now_us = micros();
-  long dif = now_us - last_tick_us;
-  last_tick_us = now_us;
+  unsigned long now;
+  long dif;
 
+  now = micros();
+  dif = now - last_tick_us;
+  last_tick_us = now;
   // output micros(), period since last tick and difference with expected period
-  Serial.print(now_us);
-  Serial.print(","); Serial.print(dif);
+  Serial.print(now);
+  Serial.print("us, "); Serial.print(dif);
   dif = dif - period; // negative is too early: positive is too late
-  Serial.print(","); Serial.println(dif);
+  Serial.print(", "); Serial.println(dif);
+/*
+  now = millis();
+  dif = now - last_tick_ms;
+  last_tick_ms = now;
+  // output millis(), period since last tick and difference with expected period
+  Serial.print(now);
+  Serial.print("ms, "); Serial.print(dif);
+  dif = dif - (period/1000); // negative is too early: positive is too late
+  Serial.print(", "); Serial.println(dif);
+*/
 }
 
 #define UPDATE_PERIOD 1000 // show the interrupt rate every second
@@ -79,6 +93,7 @@ void enableClock(bool on) {
   Serial.print("period : "); Serial.println(period);
   Timer1.setPeriod(period);
   last_tick_us = micros();
+  last_tick_ms = millis();
   clockEnabled = true;
 }
 
@@ -122,7 +137,7 @@ void setTimer(byte newTimer) {
 
 // test to see if the timing is also correct if the remainder is 0
 // only likely with the 250ns clock
-// result: when the remainder is 0, the timer is 2 us too short
+// result: when the remainder is 0, the timer is 3 us too short
 // conclusion: reprogramming the timer for the remainder/overflow costs 2 us.
 void roundPeriod() {
   if(clockIndex != 0) return; // not possible with faster clocks sources
@@ -137,6 +152,15 @@ void roundPeriod() {
   setPeriod(period);
 }
 
+// test overflow
+extern volatile uint32_t timer_millis;
+void testOverflow() {
+  Timer1.stop();
+  // set the timer 2 seconds before overflow
+  timer_millis = 0xFFFFFFFF - (unsigned long) (2000000. / 3.2 /* us/tick) */ ); 
+  setClock(clockIndex);
+}
+
 #endif ARDUINO_ARCH_MEGAAVR
 
 // setup
@@ -146,7 +170,8 @@ void setup() {
 #ifdef ARDUINO_ARCH_MEGAAVR
   Serial.print(" c: change clock source, t: change timer"); 
 #endif
-  Serial.print("\nF_CPU  : "); Serial.println(F_CPU);
+  Serial.println("");
+  Serial.print("F_CPU  : "); Serial.println(F_CPU);
   //TimerB0.initialize(&TCB0,clocks[clockIndex],period);
   Timer1.initialize();
   Timer1.attachInterrupt(myisr);
@@ -164,8 +189,7 @@ void setup() {
 
 void loop() {
   if(period < SHOW_PERIOD_LIMIT) {
-    long diff = next_tick - millis();
-    if(diff < 0) {
+    long diff = next_tick - millis();    if(diff < 0) {
       next_tick += UPDATE_PERIOD;
       unsigned long cnt = isr_counter;
       diff = cnt - prev_count;
@@ -186,6 +210,7 @@ void loop() {
       case 'c': setClock(clockIndex+1);          break; // switch clock
       case 't': setTimer(timerIndex+1);          break; // switch clock
       case 'r': roundPeriod();                   break; // set remainder to 0
+      case 'o': testOverflow();                  break; // set millis counter 2 seconds before overflow
 #endif
     }
   }
