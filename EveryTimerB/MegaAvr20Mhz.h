@@ -1,4 +1,5 @@
-#if !defined(MegaAvr20MHz_h)
+#if !defined(MegaAvr20MHz_h_)
+#define MegaAvr20MHz_h_
 // Quick hack to correct the millis() and micros() functions for 20MHz MegaAVR boards.
 // by Kees van der Oord <Kees.van.der.Oord@inter.nl.net>
 // Remember to call the function corrected20MHzInit() from setup() or an class constructor !
@@ -48,7 +49,7 @@ inline void corrected20MHzInit(void) {
 	millis_inc = 4; // (5 * 819.2) / 1000
 }
 
-// use a template to avoid the need for a .cpp file to instantiated the last_millis variable ..
+// use a template to avoid the need for a .cpp file to instantiated the static variables ..
 template<typename T>
 T corrected_millis() {
   // return millis() / 5; // wraps around at 0x33333333 instead at 0xFFFFFFFF ....
@@ -85,4 +86,4 @@ T corrected_micros() {
 
 #endif defined(ARDUINO_ARCH_MEGAAVR) && (F_CPU == 20000000UL)
 
-#endif !defined(MegaAvr20MHz_h)
+#endif !defined(MegaAvr20MHz_h_)
