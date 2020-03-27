@@ -1,9 +1,8 @@
-// EveryTimerBExample.ini
+// EveryTimerBExample.ino
 // Author: Kees van der Oord <Kees.van.der.Oord@inter.nl.net>
 // see comments in "libraries/EveryTimerB/EveryTimerB.h for more info
 
 #ifdef ARDUINO_ARCH_MEGAAVR
-#define clockCorrection 1.00
 #include "EveryTimerB.h"
 #define Timer1 TimerB0    // use TimerB0 as a drop in replacement for Timer1
 #else
@@ -41,6 +40,8 @@ volatile unsigned long isr_counter = 0;
 unsigned long last_tick_us = 0;
 unsigned long last_tick_ms = 0;
 
+bool showMicros = true;
+
 #define SHOW_PERIOD_LIMIT 100000UL   // above 10 Hz, just count the number of interrupts per second
 void myisr(void)
 {
@@ -55,24 +56,25 @@ void myisr(void)
   unsigned long now;
   long dif;
 
-  now = micros();
-  dif = now - last_tick_us;
-  last_tick_us = now;
-  // output micros(), period since last tick and difference with expected period
-  Serial.print(now);
-  Serial.print("us, "); Serial.print(dif);
-  dif = dif - period; // negative is too early: positive is too late
-  Serial.print(", "); Serial.println(dif);
-/*
-  now = millis();
-  dif = now - last_tick_ms;
-  last_tick_ms = now;
-  // output millis(), period since last tick and difference with expected period
-  Serial.print(now);
-  Serial.print("ms, "); Serial.print(dif);
-  dif = dif - (period/1000); // negative is too early: positive is too late
-  Serial.print(", "); Serial.println(dif);
-*/
+  if(showMicros) {
+    now = micros();
+    dif = now - last_tick_us;
+    last_tick_us = now;
+    // output micros(), period since last tick and difference with expected period
+    Serial.print(now);
+    Serial.print("us, "); Serial.print(dif);
+    dif = dif - period; // negative is too early: positive is too late
+    Serial.print(", "); Serial.println(dif);
+  } else {
+    now = millis();
+    dif = now - last_tick_ms;
+    last_tick_ms = now;
+    // output millis(), period since last tick and difference with expected period
+    Serial.print(now);
+    Serial.print("ms, "); Serial.print(dif);
+    dif = dif - (period/1000); // negative is too early: positive is too late
+    Serial.print(", "); Serial.println(dif);
+  }
 }
 
 #define UPDATE_PERIOD 1000 // show the interrupt rate every second
@@ -152,15 +154,6 @@ void roundPeriod() {
   setPeriod(period);
 }
 
-// test overflow
-extern volatile uint32_t timer_millis;
-void testOverflow() {
-  Timer1.stop();
-  // set the timer 2 seconds before overflow
-  timer_millis = 0xFFFFFFFF - (unsigned long) (2000000. / 3.2 /* us/tick) */ ); 
-  setClock(clockIndex);
-}
-
 #endif ARDUINO_ARCH_MEGAAVR
 
 // setup
@@ -206,11 +199,11 @@ void loop() {
       case '-': setPeriodIndex(periodIndex+1);   break; // slower
       case '+': setPeriodIndex(periodIndex-1);   break; // faster
       case 'e': enableClock(!clockEnabled);      break; // stop clock
+      case 'm': showMicros = !showMicros;        break; // change micros <--> millis
 #ifdef ARDUINO_ARCH_MEGAAVR
       case 'c': setClock(clockIndex+1);          break; // switch clock
       case 't': setTimer(timerIndex+1);          break; // switch clock
       case 'r': roundPeriod();                   break; // set remainder to 0
-      case 'o': testOverflow();                  break; // set millis counter 2 seconds before overflow
 #endif
     }
   }
