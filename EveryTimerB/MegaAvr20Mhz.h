@@ -33,6 +33,13 @@
 // functions is higher. This should be covered by the fact that the chip runs 25% faster
 // at 20 MHz than at 16 MHz.
 
+// This header file redefines the millis() and micros() functions. The redefinition
+// is only active for source files in which this header file is included. If you link
+// to libraries with a .cpp file, you have to manually change the library .cpp file to 
+// include this header as well. In addition the corrected20MHzInit() method must be called
+// from your sketch to re-initialize the variables used by the timer isr function.
+
+// for micros()
 // from wiring.c:
 extern volatile uint32_t timer_overflow_count;
 
@@ -44,38 +51,39 @@ inline unsigned long corrected_micros() {
   uint8_t ticks;
   unsigned long offset;
 
-  /* Save current state and disable interrupts */
+  // Save current state and disable interrupts 
   uint8_t status = SREG;
   cli();
 
-  /* we need to prevent that the double calculation below exceeds MAX_ULONG 
-  this assumes that micros() is called at least once every 35mins) */
+  // we need to prevent that the double calculation below exceeds MAX_ULONG 
+  // this assumes that micros() is called at least once every 35mins)
   while(timer_overflow_count > 500000UL) {
     microseconds_offset += 409600000UL; // 500000 * 819.2 ~ almost 7 minutes
     timer_overflow_count -= 500000UL;
   }
 
-  /* Get current number of overflows and timer count */
+  // Get current number of overflows and timer count
   overflows = timer_overflow_count;
   ticks = TCB3.CNTL;
   offset = microseconds_offset; 
 
-  /* If the timer overflow flag is raised, we just missed it,
-  increment to account for it, & read new ticks */
+  // If the timer overflow flag is raised, we just missed it,
+  // increment to account for it, & read new ticks 
   if(TCB3.INTFLAGS & TCB_CAPT_bm){
     overflows++;
     ticks = TCB3.CNTL;
   }
 
-  /* Restore state */
+  // Restore state
   SREG = status;
 
-  /* Return microseconds of up time  (resets every ~70mins) */
-  /* float aritmic is faster than integer multiplication */
+  // Return microseconds of up time  (resets every ~70mins) 
+  // float aritmic is faster than integer multiplication ? 
   return offset + (unsigned long)((overflows * 819.2) + (ticks * 3.2));
 }
 #define micros corrected_micros
 
+// for millis()
 // from wiring.c:
 extern volatile uint32_t timer_millis;
 extern uint16_t millis_inc;
@@ -83,8 +91,6 @@ extern uint16_t fract_inc;
 
 // call this method from your sketch setup() if you include this file !
 inline void corrected20MHzInit(void) {
-  if(fract_inc == 96) return;
-  // for millis()
   fract_inc = 96; // (5 * 819.2) % 1000
   millis_inc = 4; // (5 * 819.2) / 1000
 }

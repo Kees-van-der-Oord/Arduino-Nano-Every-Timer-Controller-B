@@ -154,6 +154,12 @@ void roundPeriod() {
   setPeriod(period);
 }
 
+void matchOverflow() {
+  if(clockIndex != 0) return; // not possible with faster clocks sources
+  Timer1.stop();
+  setPeriod(Timer1.getOverflowTime()-1);
+}
+
 #endif ARDUINO_ARCH_MEGAAVR
 
 // setup
@@ -200,10 +206,13 @@ void loop() {
       case '+': setPeriodIndex(periodIndex-1);   break; // faster
       case 'e': enableClock(!clockEnabled);      break; // stop clock
       case 'm': showMicros = !showMicros;        break; // change micros <--> millis
+      case 'u': setPeriod(period+1);             break; // period up
+      case 'd': setPeriod(period-1);             break; // period down
 #ifdef ARDUINO_ARCH_MEGAAVR
       case 'c': setClock(clockIndex+1);          break; // switch clock
       case 't': setTimer(timerIndex+1);          break; // switch clock
       case 'r': roundPeriod();                   break; // set remainder to 0
+      case 'o': matchOverflow();                 break; // no overflow
 #endif
     }
   }
