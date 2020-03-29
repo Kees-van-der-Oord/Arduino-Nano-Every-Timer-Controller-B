@@ -66,5 +66,4 @@ The functions in MegaAvr20Mhz.h correct for that.
 
 # to do:
 there is no range check on the 'period' arguments of setPeriod ...\
-check if it is necessary to set the CNT register to 0 in start()\
 add PWM support
