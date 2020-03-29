@@ -34,6 +34,8 @@ EveryTimerB * current_timer = &TimerB0;
 unsigned long period = 1000000UL;
 long periodIndex = 0;
 bool clockEnabled = false;
+bool stotter = false;
+bool concurtest = false; // concurrency test: call micros() in loop
 
 // measure the timing to the calls to the isr
 volatile unsigned long isr_counter = 0;
@@ -65,6 +67,18 @@ void myisr(void)
     Serial.print("us, "); Serial.print(dif);
     dif = dif - period; // negative is too early: positive is too late
     Serial.print(", "); Serial.println(dif);
+    if(stotter) {
+      Timer1.stop();
+      // The stotter_delay is the execution time of the code between calling micros() here 
+      // and above at the next isr call.
+      // at 20MHz it is much longer due the expensive implementation of micros()
+#if (F_CPU == 20000000UL)
+#define STOTTER_DELAY 48
+#else
+#define STOTTER_DELAY 16
+#endif
+      Timer1.setPeriod((last_tick_us + period) - micros() - STOTTER_DELAY); 
+    }
   } else {
     now = millis();
     dif = now - last_tick_ms;
@@ -155,9 +169,20 @@ void roundPeriod() {
 }
 
 void matchOverflow() {
-  if(clockIndex != 0) return; // not possible with faster clocks sources
   Timer1.stop();
-  setPeriod(Timer1.getOverflowTime()-1);
+  setPeriod(Timer1.getOverflowTime());
+}
+
+void setStotter(bool on) {
+  stotter = on;
+  showMicros = true;
+  Serial.print("stotter: "); Serial.println(on?"on":"off");
+}
+
+void setCallMicrosInLoop(bool on) {
+  concurtest = on;
+  showMicros = true;
+  Serial.print("call micros() in loop: "); Serial.println(on?"on":"off");
 }
 
 #endif ARDUINO_ARCH_MEGAAVR
@@ -186,9 +211,15 @@ void setup() {
 #endif
 }
 
+volatile unsigned long concur_micros; // for concurtest (call micros in loop)
+
 void loop() {
+  if(concurtest) {
+    concur_micros = micros();
+  }
   if(period < SHOW_PERIOD_LIMIT) {
-    long diff = next_tick - millis();    if(diff < 0) {
+    long diff = next_tick - millis();
+    if(diff < 0) {
       next_tick += UPDATE_PERIOD;
       unsigned long cnt = isr_counter;
       diff = cnt - prev_count;
@@ -202,17 +233,21 @@ void loop() {
     char c = Serial.read();
     switch(c)
     {
-      case '-': setPeriodIndex(periodIndex+1);   break; // slower
-      case '+': setPeriodIndex(periodIndex-1);   break; // faster
-      case 'e': enableClock(!clockEnabled);      break; // stop clock
-      case 'm': showMicros = !showMicros;        break; // change micros <--> millis
-      case 'u': setPeriod(period+1);             break; // period up
-      case 'd': setPeriod(period-1);             break; // period down
+      case '-': setPeriodIndex(periodIndex+1);     break; // slower
+      case '+': setPeriodIndex(periodIndex-1);     break; // faster
+      case 'e': enableClock(!clockEnabled);        break; // stop clock
+      case 'm': showMicros = !showMicros;          break; // change micros <--> millis
+      case 'u': setPeriod(period+4);               break; // period up
+      case 'U': setPeriod(period+1);               break; // period up
+      case 'd': setPeriod(period-4);               break; // period down
+      case 'D': setPeriod(period-1);               break; // period down
+      case 's': setStotter(!stotter);              break;
+      case 'l': setCallMicrosInLoop(!concurtest);  break;
 #ifdef ARDUINO_ARCH_MEGAAVR
-      case 'c': setClock(clockIndex+1);          break; // switch clock
-      case 't': setTimer(timerIndex+1);          break; // switch clock
-      case 'r': roundPeriod();                   break; // set remainder to 0
-      case 'o': matchOverflow();                 break; // no overflow
+      case 'c': setClock(clockIndex+1);            break; // switch clock
+      case 't': setTimer(timerIndex+1);            break; // switch clock
+      case 'r': roundPeriod();                     break; // set remainder to 0
+      case 'o': matchOverflow();                   break; // no overflow
 #endif
     }
   }

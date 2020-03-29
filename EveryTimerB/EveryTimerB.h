@@ -23,7 +23,7 @@ void setup() {
 }
 
 void myisr() {
-  // do something useful every second	
+  // do something useful every second  
 }
 */
 // clock source options:
@@ -105,7 +105,7 @@ class EveryTimerB
 {
   public:
     // The AtMega Timer Control B clock sources selection:
-    // TCB_CLKSEL_CLKTCA_gc,  // Timer A, Arduino framework sets TCA to F_CPU/64 = 250kHz (4us) @ 16MHz or 312.5kHz (3.2us) @ 20MHz
+    // TCB_CLKSEL_CLKTCA_gc,  // Timer Controller A, Arduino framework sets TCA to F_CPU/64 = 250kHz (4us) @ 16MHz or 312.5kHz (3.2us) @ 20MHz
     // TCB_CLKSEL_CLKDIV2_gc, // CLK_PER/2 Peripheral Clock / 2: 8MHz @ 16Mhz or 10MHz @ 20MHz 
     // TCB_CLKSEL_CLKDIV1_gc  // CLK_PER Peripheral Clock: 16MHz @ 16Mhz or 20MHz @ 20MHz 
 
@@ -125,20 +125,20 @@ class EveryTimerB
       timer->CTRLA = clockSource; // this stops the clock as well ...
       switch(clockSource) {
 #if F_CPU == 20000000UL
-        case TCB_CLKSEL_CLKTCA_gc:  maxTimeWithoutOverflow = 209719; break;  // ceil(((TCB_RESOLUTION + 1) * 64) / 20)
-        case TCB_CLKSEL_CLKDIV2_gc: maxTimeWithoutOverflow = 6554; break;    // ceil(((TCB_RESOLUTION + 1) * 2) / 20)
-        case TCB_CLKSEL_CLKDIV1_gc: maxTimeWithoutOverflow = 3277; break;    // ceil(((TCB_RESOLUTION + 1) * 1) / 20)
+        case TCB_CLKSEL_CLKTCA_gc:  maxTimeWithoutOverflow = 209715; break;  // (TCB_RESOLUTION * 64) / 20
+        case TCB_CLKSEL_CLKDIV2_gc: maxTimeWithoutOverflow =   6553; break;  // (TCB_RESOLUTION *  2) / 20
+        case TCB_CLKSEL_CLKDIV1_gc: maxTimeWithoutOverflow =   3276; break;  // (TCB_RESOLUTION *  1) / 20
 #else
         case TCB_CLKSEL_CLKTCA_gc:  maxTimeWithoutOverflow = 262144; break;
-        case TCB_CLKSEL_CLKDIV2_gc: maxTimeWithoutOverflow = 8192; break;
-        case TCB_CLKSEL_CLKDIV1_gc: maxTimeWithoutOverflow = 4096; break;
+        case TCB_CLKSEL_CLKDIV2_gc: maxTimeWithoutOverflow =   8192; break;
+        case TCB_CLKSEL_CLKDIV1_gc: maxTimeWithoutOverflow =   4096; break;
 #endif        
       }
     }
 
     // setPeriod: sets the period
     // note: max and min values are different for each clock 
-    // CLKTCA: conversion from us to ticks is a *20/64 division, so max value is 4.2G us (~ 1 hour, 11 minutes)
+    // CLKTCA: conversion from us to ticks multiplies 'period' first with 10, so max value is MAX_ULONG/10 ~ 1 hr 11 minutes 34 seconds
     // CLKDIV2: conversion from us to ticks is a *10 multiplication, so max value is 420M us (~ 7 minutes)
     // CLKDIV1: conversion from us to ticks is a *20 multiplication, so max value is 210M us (~ 3.5 minutes)
     void setPeriod(unsigned long period /* us */) __attribute__((always_inline)) {
@@ -148,42 +148,64 @@ class EveryTimerB
       {
         case TCB_CLKSEL_CLKTCA_gc:
 #if F_CPU == 20000000UL
-          period = (period * 10) / 32;
+          period = (period * 10) / 32; // 20Mhz / 64x clock divider of TCA => 3.2 us / tick
 #else // 16000000UL
-          period /= 4;
+          period /= 4; // 16MHz / 64x clock divider of TCA => 4 us / tock
 #endif        
           break;
         case TCB_CLKSEL_CLKDIV2_gc:
 #if F_CPU == 20000000UL
-          period *= 10;
+          period *= 10; // 20MHz / 2x clock divider => 10 ticks / us
 #else // 16000000UL
-          period *= 8;
+          period *= 8;  // 16MHz / 2x clock divider => 8 ticks / us
 #endif        
           break;
         case TCB_CLKSEL_CLKDIV1_gc:
 #if F_CPU == 20000000UL
-          period *= 20;
+          period *= 20; // 20MHz: 20 ticks / us
 #else // 16000000UL
-          period *= 16;
+          period *= 16; // 16MHz: 16 ticks / u3
 #endif
           break;
       }
-      period -= 1; // you always get one timer tick for free ...
+
+      // to support longer than TCB_RESOLUTION ticks, 
+      // this class supports first waiting for N 'overflowCounts'
+      // and next program the timer the remaining 'remainder' ticks:
+      countsPerOverflow = TCB_RESOLUTION;
       overflowCounts = period / TCB_RESOLUTION;
       remainder = period % TCB_RESOLUTION;
+
+      // the timer period is always one tick longer than programmed,
+      // so a remainder of 1 is not possible. reduce the length of 
+      // the 'overflow' cycles to get a remainder that is not 1
+      if(overflowCounts) {
+        while(remainder == 1) {
+          --countsPerOverflow;
+          overflowCounts = period / countsPerOverflow;
+          remainder = period % countsPerOverflow;
+        }
+      }
+
+      // the timer period is always one tick longer than programmed
+      --countsPerOverflow;
+      if(remainder) --remainder;
+
+      // let's go
       start();
     }
     
     void start() __attribute__((always_inline)) {
       stop();
       overflowCounter = overflowCounts;
-      timer->CNT = 0; // keeping this 1 gives weird timing
-      program_counter(overflowCounts ? (TCB_RESOLUTION - 1) : remainder);
+      timer->CCMP = overflowCounts ? countsPerOverflow : remainder;
+      timer->CNT = 0;
+      timer->CTRLA |= TCB_ENABLE_bm;
     }
     
     void stop() __attribute__((always_inline)) {
       timer->CTRLA &= ~TCB_ENABLE_bm;
-      timer->INTFLAGS = TCB_CAPT_bm; 
+      timer->INTFLAGS = TCB_CAPT_bm;  // writing to the INTFLAGS register will clear the interrupt request flag
     }
     
     bool isEnabled(void) {
@@ -192,7 +214,7 @@ class EveryTimerB
 
     void attachInterrupt(void (*isr)()) __attribute__((always_inline)) {
       isrCallback = isr;
-	    timer->INTFLAGS = TCB_CAPT_bm; // clear interrupt request flag
+      timer->INTFLAGS = TCB_CAPT_bm; // clear interrupt request flag
       timer->INTCTRL = TCB_CAPT_bm;  // Enable the interrupt
     }
     
@@ -209,52 +231,50 @@ class EveryTimerB
 
     TCB_t * getTimer() { return timer; }
     long getOverflowCounts() { return overflowCounts; }
-	  long getRemainder() { return remainder; }
-	  long getOverflowCounter() { return overflowCounter; }
+    long getRemainder() { return remainder; }
+    long getOverflowCounter() { return overflowCounter; }
     long getOverflowTime() { return maxTimeWithoutOverflow; }
-	
+  
 //protected:
     // the next_tick function is called by the interrupt service routine TCB0_INT_vect
     //friend extern "C" void TCB0_INT_vect(void);
     void next_tick() __attribute__((always_inline)) {
       --overflowCounter;
-      if (overflowCounter < 0) {
+      if(overflowCounter > 0) {
+        return;
+      }
+      if(overflowCounter < 0) {
+        // finished waiting for remainder
         if (overflowCounts) {
           // restart with a max counter
           overflowCounter = overflowCounts;
-          program_counter(TCB_RESOLUTION - 1);
+          timer->CCMP = countsPerOverflow;
         }
-        (*isrCallback)();
-        return;
-      }
-      if (overflowCounter == 0) {
-        // the max counter series has finished: to the remainder if any
+      } else {
+        // overflowCounter == 0
+        // the overflow series has finished: to the remainder if any
         if(remainder) {
-          program_counter(remainder);
-        } else {
-          // no remainder series: reset the counter and do the callback
-          overflowCounter = overflowCounts;
-          (*isrCallback)();
+          timer->CCMP = remainder;
+          if(timer->CNT < remainder) return;
+          // remainder is so short: already passed !
+          timer->CCMP = countsPerOverflow;
         }
+        // no remainder series: reset the overflow counter and do the callback
+        overflowCounter = overflowCounts;
       }
-    }
-
-    void inline  __attribute__((always_inline)) program_counter(unsigned short ccmp) {
-      timer->CTRLA &= ~TCB_ENABLE_bm;
-      //timer->CNT = 1; // setting this to 0 gives weird timing
-      timer->CCMP = ccmp;
-      timer->CTRLA |= TCB_ENABLE_bm;
+      (*isrCallback)();
     }
 
 private:
-    TCB_t * timer;
-    long overflowCounts;
-    long remainder;
-    long overflowCounter;
+    TCB_t * timer = &TCB0;
+    long overflowCounts = 0;
+    long remainder = 10;
+    long overflowCounter = 0;
+    unsigned short countsPerOverflow = TCB_RESOLUTION - 1;
     void (*isrCallback)();
     static void isrDefaultUnused();
     unsigned long maxTimeWithoutOverflow;
-	
+  
 }; // EveryTimerB
 
 extern EveryTimerB TimerB0;
