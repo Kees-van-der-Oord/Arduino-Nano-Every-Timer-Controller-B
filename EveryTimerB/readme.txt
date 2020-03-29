@@ -75,5 +75,4 @@ nona4809.menu.clock.20internal.bootloader.OSCCFG=0x02
 //
 // to do:
 // there is no range check on the 'period' arguments of setPeriod ...
-// check if it is necessary to set the CNT register to 0 in start()
 // add PWM support
