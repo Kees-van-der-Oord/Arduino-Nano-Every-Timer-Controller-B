@@ -43,10 +43,10 @@ Note that the Timer B also implements PWM on several pins, so there might be\
 some conflicts there too. 
 
 # for information on the 4809 TCA and TCB timers:
-http://ww1.microchip.com/downloads/en/AppNotes/TB3217-Getting-Started-with-TCA-90003217A.pdf
-http://ww1.microchip.com/downloads/en/Appnotes/TB3214-Getting-Started-with-TCB-90003214A.pdf
-%LOCALAPPDATA%\Arduino15\packages\arduino\hardware\megaavr\1.8.5\cores\arduino\wiring.c\
-%LOCALAPPDATA%\Arduino15\packages\arduino\hardware\megaavr\1.8.5\variants\nona4809\variant.c\
+http://ww1.microchip.com/downloads/en/AppNotes/TB3217-Getting-Started-with-TCA-90003217A.pdf \
+http://ww1.microchip.com/downloads/en/Appnotes/TB3214-Getting-Started-with-TCB-90003214A.pdf \
+%LOCALAPPDATA%\Arduino15\packages\arduino\hardware\megaavr\1.8.5\cores\arduino\wiring.c \
+%LOCALAPPDATA%\Arduino15\packages\arduino\hardware\megaavr\1.8.5\variants\nona4809\variant.c \
 %LOCALAPPDATA%\Arduino15\packages\arduino\tools\avr-gcc\7.3.0-atmel3.6.1-arduino5\avr\include\avr\iom4809.h
 
 # 20 MHz system clock
@@ -66,5 +66,4 @@ The functions in MegaAvr20Mhz.h correct for that.
 
 # to do:
 there is no range check on the 'period' arguments of setPeriod ...\
-check if it is necessary to set the CNT register to 0 in start()\
 add PWM support

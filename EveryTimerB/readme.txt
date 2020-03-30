@@ -66,14 +66,9 @@ nona4809.menu.clock.20internal=20MHz
 nona4809.menu.clock.20internal.build.f_cpu=20000000L
 nona4809.menu.clock.20internal.bootloader.OSCCFG=0x02
 */
-// On 20Mhz, the speed of the TCB gets a little weird. I would expect that it runs
-// a factor of 20/16 faster than @ 16Mhz. When comparing the timer periods with millis()
-// and micros() there is a difference of 0.024 %. I guess this is more a side-effect
-// of the way how the arduino core tries to mimic the 4 us clock for micros().
-// The code below applies the correction factor to make the timer setPeriod()
-// function consistent with micros() and millis().
+// On 20Mhz, the milis() and micros() implementation of the arduino core is inaccurate.
+// The functions in MegaAvr20Mhz.h correct for that.
 //
 // to do:
 // there is no range check on the 'period' arguments of setPeriod ...
-// check if it is necessary to set the CNT register to 0 in start()
 // add PWM support
