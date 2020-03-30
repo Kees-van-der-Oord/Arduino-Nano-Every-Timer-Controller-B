@@ -1,53 +1,69 @@
 // EveryTimerBExample.ino
 // Author: Kees van der Oord <Kees.van.der.Oord@inter.nl.net>
-// see comments in "libraries/EveryTimerB/EveryTimerB.h for more info
+// see comments in "~/Arduino/libraries/EveryTimerB/EveryTimerB.h for more info
 
 #ifdef ARDUINO_ARCH_MEGAAVR
 #include "EveryTimerB.h"
-#define Timer1 TimerB0    // use TimerB0 as a drop in replacement for Timer1
+#define Timer1 TimerB2    // use TimerB2 as a drop in replacement for Timer1
 #else
 #include "TimerOne.h"
 #endif
 
 #define BAUD_RATE 115200
 
-#ifdef ARDUINO_ARCH_MEGAAVR
+#if defined(EveryTimerB_h_)
+// the ATMega4809 has three Timers B: TCB0, TBC1, TBC2
+// TCB0 and TCB1 are used to generate PWM on the pins 3, 5, 6, 9 and 10
+// TCB2 is selected here by default to generate timer interupts
 
-// can cycle through these clocks with the 'c' comamnd
-TCB_CLKSEL_t clocks[3] = {TCB_CLKSEL_CLKTCA_gc,TCB_CLKSEL_CLKDIV2_gc,TCB_CLKSEL_CLKDIV1_gc};
-const char * clockNames[3] = {"CLKTCA","CLKDIV2","CLKDIV1"};
-byte clockIndex = 0;
-
-// can test also timers B1 and B2
-// the TimerB0 declaration is in the library cpp file
-EveryTimerB TimerB1;
-EveryTimerB TimerB2;
+// the TimerB2 declaration is in the library cpp file
+// can test also timers B0 and B1
+// cycle through these timers with the 't' command
+EveryTimerB   TimerB0;
+EveryTimerB   TimerB1;
 EveryTimerB * timers[3] = {&TimerB0,&TimerB1,&TimerB2};
-const char *  timerNames[3] = {"TimerB0","TimerB1","TimerB2"};
-byte timerIndex = 0;
-EveryTimerB * current_timer = &TimerB0;
+const char *  timerNames[5] = {"TCB0","TCB1","TCB2","TCA","???"};
+byte          timerIndex = 2;
+EveryTimerB * current_timer = &TimerB2;
 #define Timer1 (*current_timer)
 
-#endif ARDUINO_ARCH_MEGAAVR
+// For the timers you can select three clocks: CLCKTA, CLCKDIV2, CLCKDIV1
+// the clock frequency depends on the system clock frequency (20MHz or 16 MHz)
+// CLOCK   F_CPU  DIV  TICK      OVERFLOW  OVERFLOW/s
+// CLKTCA  16MHz  64   4000  ns  262144us    3.8 Hz
+// CLKDIV2 16MHz   2    125  ns    8192us  122 Hz
+// CLKDIV1 16MHz   1     62.5ns    4096us  244 Hz
+// CLKTCA  20MHz  64   3200  ns  209716us    4.8 Hz
+// CLKDIV2 20MHz   2    100  ns    6554us  153 Hz
+// CLKDIV1 20MHz   1     50  ns    3277us  305 Hz
+// you can cycle through these clocks with the 'c' comamnd
+TCB_CLKSEL_t clocks[3] = {TCB_CLKSEL_CLKTCA_gc,TCB_CLKSEL_CLKDIV2_gc,TCB_CLKSEL_CLKDIV1_gc};
+const char * clockNames[3] = {"CLKTCA","CLKDIV2","CLKDIV1"};
+byte         clockIndex = 0;
+
+#endif defined(EveryTimerB_h_)
 
 // store current settings
 unsigned long period = 1000000UL;
-long periodIndex = 0;
-bool clockEnabled = false;
-bool stotter = false;
-bool concurtest = false; // concurrency test: call micros() in loop
+long          periodIndex = 0;
+bool          clockEnabled = false;
+bool          stutter = false;
+bool          concurtest = false; // concurrency test: call micros() in loop
 
 // measure the timing to the calls to the isr
 volatile unsigned long isr_counter = 0;
-unsigned long last_tick_us = 0;
-unsigned long last_tick_ms = 0;
+unsigned long          last_tick_us = 0;
+unsigned long          last_tick_ms = 0;
+bool                   showMicros = true;
 
-bool showMicros = true;
+#define SHOW_PERIOD_LIMIT 100000UL   
 
-#define SHOW_PERIOD_LIMIT 100000UL   // above 10 Hz, just count the number of interrupts per second
+// myisr is pass the TimerB objects as callback function when the timer expires
 void myisr(void)
 {
+  
   if(period < SHOW_PERIOD_LIMIT) {
+    // above 10 Hz, just count the number of interrupts per second
     ++isr_counter;
     return;
   }
@@ -67,17 +83,17 @@ void myisr(void)
     Serial.print("us, "); Serial.print(dif);
     dif = dif - period; // negative is too early: positive is too late
     Serial.print(", "); Serial.println(dif);
-    if(stotter) {
+    if(stutter) {
       Timer1.stop();
-      // The stotter_delay is the execution time of the code between calling micros() here 
+      // The stutter_delay is the execution time of the code between calling micros() here 
       // and above at the next isr call.
       // at 20MHz it is much longer due the expensive implementation of micros()
 #if (F_CPU == 20000000UL)
-#define STOTTER_DELAY 48
+#define STUTTER_DELAY 48
 #else
-#define STOTTER_DELAY 16
+#define STUTTER_DELAY 16
 #endif
-      Timer1.setPeriod((last_tick_us + period) - micros() - STOTTER_DELAY); 
+      Timer1.setPeriod((last_tick_us + period) - micros() - STUTTER_DELAY); 
     }
   } else {
     now = millis();
@@ -123,16 +139,15 @@ void setPeriodIndex(long newIndex) {
 }
 
 // set the period 
-void setPeriod(unsigned long newPeriod)
-{
+void setPeriod(unsigned long newPeriod) {
   period = newPeriod;
   enableClock(true);  
-#ifdef ARDUINO_ARCH_MEGAAVR
+#if defined(EveryTimerB_h_)
   Serial.print("overflowCounts "); Serial.print(Timer1.getOverflowCounts()); Serial.print(" remainder "); Serial.println(Timer1.getRemainder());
-#endif ARDUINO_ARCH_MEGAAVR
+#endif defined(EveryTimerB_h_)
 }
 
-#ifdef ARDUINO_ARCH_MEGAAVR
+#if defined(EveryTimerB_h_)
 
 // cycle the clock source
 void setClock(byte newClock) {
@@ -173,10 +188,10 @@ void matchOverflow() {
   setPeriod(Timer1.getOverflowTime());
 }
 
-void setStotter(bool on) {
-  stotter = on;
+void setStutter(bool on) {
+  stutter = on;
   showMicros = true;
-  Serial.print("stotter: "); Serial.println(on?"on":"off");
+  Serial.print("stutter: "); Serial.println(on?"on":"off");
 }
 
 void setCallMicrosInLoop(bool on) {
@@ -185,32 +200,81 @@ void setCallMicrosInLoop(bool on) {
   Serial.print("call micros() in loop: "); Serial.println(on?"on":"off");
 }
 
-#endif ARDUINO_ARCH_MEGAAVR
+void showTimersOfPwmPin(int pin) {
+  int timer = digitalPinToTimer(pin);
+  timer -= 2; // convert to index in timerNames[];
+  if(timer == -1) timer = 3;
+  if((timer < 0) || (timer > 3)) timer = 4;
+  Serial.print("pin "); Serial.print(pin); Serial.print(" timer: "); Serial.println(timerNames[timer]);
+}
+
+void showTimersOfPwmPins() {
+  showTimersOfPwmPin(3);
+  showTimersOfPwmPin(5);
+  showTimersOfPwmPin(6);
+  showTimersOfPwmPin(9);
+  showTimersOfPwmPin(10);
+}
+
+// pin 6 pwm is done by TCB0
+// pin 3 pwm is done by TCB1
+// pins 5, 9, 10 done by TCA
+void setToPwm(byte pin) {
+  uint8_t timer_index = digitalPinToTimer(pin);
+  if((timer_index >= TIMERB0) && (timer_index < TIMERB3)) {
+    // must be pin 3 or 6
+    timer_index -= TIMERB0;
+    EveryTimerB * timer = timers[timer_index];
+    if(timer->getMode() == TCB_CNTMODE_PWM8_gc) {
+      Serial.print("timer "); Serial.print(timerNames[timer_index]); Serial.println(" set to timer compare mode");
+      timer->setTimerMode();
+      if(timer == current_timer) {
+        setTimer(timer_index);
+      }
+      return;
+    }
+    Serial.print("timer "); Serial.print(timerNames[timer_index]); Serial.println(" set to PWM mode");
+    timer->setPwmMode();
+  }
+  Serial.print("analogWrite("); Serial.print(pin); Serial.println(",60);");
+  analogWrite(pin,60);
+}
+
+#endif defined(EveryTimerB_h_)
 
 // setup
 void setup() {
   Serial.begin(BAUD_RATE);
+
   Serial.print("commands: +: faster, -: slower, e: enable/disable");
-#ifdef ARDUINO_ARCH_MEGAAVR
+#if defined(EveryTimerB_h_)
   Serial.print(" c: change clock source, t: change timer"); 
-#endif
+#endif defined(EveryTimerB_h_)
   Serial.println("");
   Serial.print("F_CPU  : "); Serial.println(F_CPU);
-  //TimerB0.initialize(&TCB0,clocks[clockIndex],period);
-  Timer1.initialize();
-  Timer1.attachInterrupt(myisr);
-#ifdef ARDUINO_ARCH_MEGAAVR
-  setTimer(timerIndex);
+
+#if defined(EveryTimerB_h_)
+  TimerB0.initialize(&TCB0);
+  TimerB0.stop();
+  TimerB0.attachInterrupt(myisr);
   TimerB1.initialize(&TCB1);
-  TimerB1.stop(); // on by default ?
+  TimerB1.stop();
   TimerB1.attachInterrupt(myisr);
   TimerB2.initialize(&TCB2);
-  TimerB2.stop(); // on by default ?
+  TimerB2.stop();
   TimerB2.attachInterrupt(myisr);
-  // TCB3: used by arduino core ????
-#endif
+  // TCB3: used by arduino core for micros()
+  showTimersOfPwmPins();
+  setTimer(2);
+#else defined(EveryTimerB_h_)
+  Timer1.initialize();
+  Timer1.attachInterrupt(myisr);
+  setPeriodIndex(periodIndex);
+#endif !defined(EveryTimerB_h_)
 }
 
+// use volatile to prevent the compiler to remove assignment of
+// this variable that is not used anywhere else
 volatile unsigned long concur_micros; // for concurtest (call micros in loop)
 
 void loop() {
@@ -241,33 +305,39 @@ void loop() {
       case 'U': setPeriod(period+1);               break; // period up
       case 'd': setPeriod(period-4);               break; // period down
       case 'D': setPeriod(period-1);               break; // period down
-      case 's': setStotter(!stotter);              break;
+      case 's': setStutter(!stutter);              break;
       case 'l': setCallMicrosInLoop(!concurtest);  break;
-#ifdef ARDUINO_ARCH_MEGAAVR
+#if defined(EveryTimerB_h_)
       case 'c': setClock(clockIndex+1);            break; // switch clock
       case 't': setTimer(timerIndex+1);            break; // switch clock
       case 'r': roundPeriod();                     break; // set remainder to 0
       case 'o': matchOverflow();                   break; // no overflow
-#endif
+      case '3': setToPwm(3);                       break; // no overflow
+      case '5': setToPwm(5);                       break; // no overflow
+      case '6': setToPwm(6);                       break; // no overflow
+      case '9': setToPwm(9);                       break; // no overflow
+      case '0': setToPwm(10);                      break; // no overflow
+#endif defined(EveryTimerB_h_)
     }
   }
 }
 
-#ifdef ARDUINO_ARCH_MEGAAVR
-// for the TimerB0, this code is in the library cpp file
+#if defined(EveryTimerB_h_)
+
+// code timer B0
+ISR(TCB0_INT_vect)
+{
+  TimerB0.next_tick();
+  TCB0.INTFLAGS = TCB_CAPT_bm; // writing to the INTFLAGS register clears the interrupt request flag
+}
 
 // code timer B1
 ISR(TCB1_INT_vect)
 {
   TimerB1.next_tick();
-  TCB1.INTFLAGS = TCB_CAPT_bm;
+  TCB1.INTFLAGS = TCB_CAPT_bm; // writing to the INTFLAGS register clears the interrupt request flag
 }
 
-// code timer B2
-ISR(TCB2_INT_vect)
-{
-  TimerB2.next_tick();
-  TCB2.INTFLAGS = TCB_CAPT_bm;
-}
+// for the TimerB2, this code is in the library cpp file
 
-#endif ARDUINO_ARCH_MEGAAVR
+#endif defined(EveryTimerB_h_)

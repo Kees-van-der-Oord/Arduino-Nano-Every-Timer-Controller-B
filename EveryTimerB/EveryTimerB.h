@@ -9,7 +9,7 @@
 /*
 #ifdef ARDUINO_ARCH_MEGAAVR
 #include "EveryTimerB.h"
-#define Timer1 TimerB0    // use TimerB0 as a drop in replacement for Timer1
+#define Timer1 TimerB2    // use TimerB2 as a drop in replacement for Timer1
 #else // assume architecture supported by TimerOne library ....
 #include "TimerOne.h"
 #endif
@@ -19,7 +19,7 @@
 void setup() {
   Timer1.initialize();
   Timer1.attachInterrupt(myisr);
-  Timer1.setPeriod(1000000);     // like the TimerOne library this will start the timer as well
+  Timer1.setPeriod(1000000UL);     // like the TimerOne library this will start the timer as well
 }
 
 void myisr() {
@@ -36,14 +36,11 @@ void myisr() {
 
 // timer options
 // The 4809 has one A timer (TCA) and four B timers (TCB).
-// TCA is used by the arduino core to generate the clock used by millis() and micros().
-// By default Timer Control B0 is defined as TimerB0 in the EveryTimerB library
-// If you would like to use the TCB1 and TCB2 as well you have to copy the code
-// from the EveryTimerB.cpp into your product file and adapt for B1 and B2 timers.
-// It looks like that the Arduino Core is using timer B3 (for what ?) so don't
-// mess with that if you don't want to break something.
-// Note that the Timer B also implements PWM on several pins, so there might be
-// some conflicts there too.  
+// TCA and TCB3 are used by the arduino core to generate the clock used by millis() and micros().
+// TCB0 generates the PWM timing for pin D6, TCB1 for pin D3.
+// By default Timer Control B2 is defined as TimerB2 in the EveryTimerB library.
+// If you would like to use the TCB0 and TCB1 as well you have to copy the code
+// from the EveryTimerB.cpp into your product file and adapt for B0 and B1 timers.
 //
 // for information on the 4809 TCA and TCB timers:
 // http://ww1.microchip.com/downloads/en/AppNotes/TB3217-Getting-Started-with-TCA-90003217A.pdf
@@ -72,7 +69,6 @@ nona4809.menu.clock.20internal.bootloader.OSCCFG=0x02
 // to do:
 // there is no range check on the 'period' arguments of setPeriod ...
 // check if it is necessary to set the CNT register to 0 in start()
-// add PWM support
 
 #ifndef EveryTimerB_h_
 #define EveryTimerB_h_
@@ -87,10 +83,8 @@ nona4809.menu.clock.20internal.bootloader.OSCCFG=0x02
 #else
 #include "WProgram.h"
 #endif
-
-#include "pins_arduino.h"
-
 #include "MegaAvr20MHz.h"
+#include "pins_arduino.h"
 
 #define TCB_RESOLUTION 65536UL // TCB is 16 bit
 // CLOCK   F_CPU  DIV  TICK      OVERFLOW  OVERFLOW/s
@@ -110,13 +104,13 @@ class EveryTimerB
     // TCB_CLKSEL_CLKDIV1_gc  // CLK_PER Peripheral Clock: 16MHz @ 16Mhz or 20MHz @ 20MHz 
 
     // intialize: sets the timer compare mode and the clock source
-    void initialize(TCB_t * timer_ = &TCB0, TCB_CLKSEL_t clockSource = EveryTimerB_CLOCMODE, unsigned long period = 1000000UL) __attribute__((always_inline)) {
+    void initialize(TCB_t * timer_ = &TCB2, TCB_CLKSEL_t clockSource = EveryTimerB_CLOCMODE, unsigned long period = 1000000UL) __attribute__((always_inline)) {
+      timer = timer_;
 #if defined(MegaAvr20MHzCorrected)
       corrected20MHzInit(); // see commment in MegaAvr20MHz_h
 #endif        
-      timer = timer_;
-      timer->CTRLB = TCB_CNTMODE_INT_gc; // Use timer compare mode
-      isrCallback = isrDefaultUnused;
+      stop();
+      timer->CTRLB = TCB_CNTMODE_INT_gc & ~TCB_CCMPEN_bm; // timer compare mode with output disabled
       if(clockSource) setClockSource(clockSource);
       if(period) setPeriod(period);
     }
@@ -134,6 +128,10 @@ class EveryTimerB
         case TCB_CLKSEL_CLKDIV1_gc: maxTimeWithoutOverflow =   4096; break;
 #endif        
       }
+    }
+
+    TCB_CLKSEL_t getClockSource() {
+      return timer->CTRLA & (TCB_CLKSEL_CLKTCA_gc|TCB_CLKSEL_CLKDIV2_gc|TCB_CLKSEL_CLKDIV1_gc);
     }
 
     // setPeriod: sets the period
@@ -208,8 +206,16 @@ class EveryTimerB
       timer->INTFLAGS = TCB_CAPT_bm;  // writing to the INTFLAGS register will clear the interrupt request flag
     }
     
-    bool isEnabled(void) {
+    bool isEnabled(void) __attribute__((always_inline)) {
       return timer->CTRLA & TCB_ENABLE_bm ? true : false;
+    }
+
+    void enable(void) __attribute__((always_inline)) {
+      timer->CTRLA |= TCB_ENABLE_bm;
+    }
+
+    bool disable(void) __attribute__((always_inline)) {
+      timer->CTRLA &= ~TCB_ENABLE_bm;
     }
 
     void attachInterrupt(void (*isr)()) __attribute__((always_inline)) {
@@ -227,6 +233,55 @@ class EveryTimerB
     void detachInterrupt() __attribute__((always_inline)) {
       timer->INTCTRL &= ~TCB_CAPT_bm; // Disable the interrupt
       isrCallback = isrDefaultUnused;
+    }
+
+    void enableInterrupt() __attribute__((always_inline)) {
+      timer->INTFLAGS = TCB_CAPT_bm; // clear interrupt request flag
+      timer->INTCTRL = TCB_CAPT_bm;  // Enable the interrupt
+    }
+
+    void disableInterrupt() __attribute__((always_inline)) {
+      timer->INTCTRL &= ~TCB_CAPT_bm;  // Enable the interrupt
+    }
+
+    TCB_CNTMODE_enum getMode() __attribute__((always_inline)) {
+      return timer->CTRLB & 0x7;
+    }
+
+    void setMode(TCB_CNTMODE_enum mode) __attribute__((always_inline)) {
+      timer->CTRLB = (timer->CTRLB & ~0x7) | mode;
+    }
+
+    uint8_t isOutputEnabled() __attribute__((always_inline)) {
+      return timer->CTRLB & TCB_CCMPEN_bm;
+    }
+
+    uint8_t enableOutput() __attribute__((always_inline)) {
+      timer->CTRLB |= TCB_CCMPEN_bm;
+    }
+
+    uint8_t disableOutput() __attribute__((always_inline)) {
+      timer->CTRLB &= ~TCB_CCMPEN_bm;
+    }
+
+    void setPwmMode() {
+      // this is how the Aruuino framework programs the counter for PWM
+      disableInterrupt();
+      setMode(TCB_CNTMODE_PWM8_gc);
+      timer->CCMPL = PWM_TIMER_PERIOD;  // 0xFF
+      timer->CCMPH = PWM_TIMER_COMPARE; // 0x80
+      setClockSource(TCB_CLKSEL_CLKTCA_gc); // 
+      //enableOutput(); this is done by analogWrite (wiring_analog.c)
+      enable();
+    }
+
+    void setTimerMode() {
+      disable();
+      disableOutput();
+      setMode(TCB_CNTMODE_INT_gc);
+      if(isrCallback != isrDefaultUnused) {
+        enableInterrupt();
+      }
     }
 
     TCB_t * getTimer() { return timer; }
@@ -277,7 +332,7 @@ private:
   
 }; // EveryTimerB
 
-extern EveryTimerB TimerB0;
+extern EveryTimerB TimerB2;
 
 #endif ARDUINO_ARCH_MEGAAVR
 #endif EveryTimerB_h_
