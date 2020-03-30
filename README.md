@@ -7,7 +7,7 @@ To add support for the Every activate the 'Arduino MegaAVR' boards module (Tools
 # usage:
 #ifdef ARDUINO_ARCH_MEGAAVR\
 #include "EveryTimerB.h"\
-#define Timer1 TimerB0    // use TimerB0 as a drop in replacement for Timer1\
+#define Timer1 TimerB2    // use TimerB2 as a drop in replacement for Timer1\
 #else // assume architecture supported by TimerOne ....\
 #include "TimerOne.h"\
 #endif
@@ -34,13 +34,12 @@ e.g.:\
 # timer options:
 The 4809 has one A timer (TCA) and four B timers (TCB).\
 TCA is used by the arduino core to generate the clock used by millis() and micros().\
-By default Timer Control B0 is defined as TimerB0 in the EveryTimerB library\
-If you would like to use the TCB1 and TCB2 as well you have to copy the code\
-from the EveryTimerB.cpp into your product file and adapt for B1 and B2 timers.\
+By default Timer Control B2 is defined as TimerB2 in the EveryTimerB library\
+TCB0 and TCB1 control PWM of pins 6 and 3. If you don't use PWM on these pins\
+you can define a TimerB object for TCB0 and TCB1 and copy the ISR code from the\
+EveryTimerB.cpp file.\
 The Arduino Core is using timer B3 for millis() and micros() so don't mess with\
-TCB3  if you don't want to break the functionality of these functions.\
-Note that the Timer B also implements PWM on several pins, so there might be\
-some conflicts there too. 
+TCB3  if you don't want to break the functionality of these functions.
 
 # for information on the 4809 TCA and TCB timers:
 http://ww1.microchip.com/downloads/en/AppNotes/TB3217-Getting-Started-with-TCA-90003217A.pdf \
@@ -65,5 +64,4 @@ On 20Mhz, the milis() and micros() implementation of the arduino core is inaccur
 The functions in MegaAvr20Mhz.h correct for that.
 
 # to do:
-there is no range check on the 'period' arguments of setPeriod ...\
-add PWM support
+there is no range check on the 'period' arguments of setPeriod ...
