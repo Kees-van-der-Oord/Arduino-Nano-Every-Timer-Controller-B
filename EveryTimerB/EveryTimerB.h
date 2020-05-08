@@ -264,14 +264,20 @@ class EveryTimerB
       timer->CTRLB &= ~TCB_CCMPEN_bm;
     }
 
-    void setPwmMode() {
-      // this is how the Aruuino framework programs the counter for PWM
+	// this will start PWM on pin 6 (TCB0) or pin 3 (TCB1)
+	// set the pins to output with setMode(x,OUTPUT) before calling this function
+	// period determines the clock ticks in one cycle:
+	//  16MHz clock: slowest frequency at 255 = 62 kHz.
+	//   8MHz clock: slowest frequency at 255 = 31 kHz.
+	// 256kHz clock: slowest frequency at 255 =  1 kHz.
+	// compare determines the duty cycle.
+	// with a period of 255, set the compare to 128 to get 50% duty cycle.
+    void setPwmMode(byte period, byte compare) {
       disableInterrupt();
       setMode(TCB_CNTMODE_PWM8_gc);
-      timer->CCMPL = PWM_TIMER_PERIOD;  // 0xFF
-      timer->CCMPH = PWM_TIMER_COMPARE; // 0x80
-      setClockSource(TCB_CLKSEL_CLKTCA_gc); // 
-      //enableOutput(); this is done by analogWrite (wiring_analog.c)
+      timer->CCMPL = period; 
+      timer->CCMPH = compare;
+      enableOutput();
       enable();
     }
 
