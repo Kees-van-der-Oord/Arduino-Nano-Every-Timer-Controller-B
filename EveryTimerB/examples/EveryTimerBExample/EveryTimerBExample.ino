@@ -234,7 +234,7 @@ void setToPwm(byte pin) {
       return;
     }
     Serial.print("timer "); Serial.print(timerNames[timer_index]); Serial.println(" set to PWM mode");
-    timer->setPwmMode();
+    timer->setPwmMode(255,128);
   }
   Serial.print("analogWrite("); Serial.print(pin); Serial.println(",60);");
   analogWrite(pin,60);
@@ -305,9 +305,9 @@ void loop() {
       case 'U': setPeriod(period+1);               break; // period up
       case 'd': setPeriod(period-4);               break; // period down
       case 'D': setPeriod(period-1);               break; // period down
+#if defined(EveryTimerB_h_)
       case 's': setStutter(!stutter);              break;
       case 'l': setCallMicrosInLoop(!concurtest);  break;
-#if defined(EveryTimerB_h_)
       case 'c': setClock(clockIndex+1);            break; // switch clock
       case 't': setTimer(timerIndex+1);            break; // switch clock
       case 'r': roundPeriod();                     break; // set remainder to 0
