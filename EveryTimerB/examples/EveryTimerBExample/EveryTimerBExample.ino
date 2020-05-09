@@ -155,7 +155,11 @@ void setClock(byte newClock) {
   clockIndex = newClock % 3;
   Serial.print("clock  : "); Serial.println(clockNames[clockIndex]);
   Timer1.setClockSource(clocks[clockIndex]);
-  setPeriodIndex(periodIndex);
+  if(current_timer->getMode() == TCB_CNTMODE_PWM8_gc) {
+    configurePwm();
+  } else {  
+    setPeriodIndex(periodIndex);
+  }
 }
 
 void setTimer(byte newTimer) {
@@ -216,31 +220,123 @@ void showTimersOfPwmPins() {
   showTimersOfPwmPin(10);
 }
 
+byte pwm8period = 255;
+byte pwm8compare = 128;
+
 // pin 6 pwm is done by TCB0
 // pin 3 pwm is done by TCB1
 // pins 5, 9, 10 done by TCA
-void setToPwm(byte pin) {
-  uint8_t timer_index = digitalPinToTimer(pin);
-  if((timer_index >= TIMERB0) && (timer_index < TIMERB3)) {
-    // must be pin 3 or 6
-    timer_index -= TIMERB0;
-    EveryTimerB * timer = timers[timer_index];
-    if(timer->getMode() == TCB_CNTMODE_PWM8_gc) {
-      Serial.print("timer "); Serial.print(timerNames[timer_index]); Serial.println(" set to timer compare mode");
-      timer->setTimerMode();
-      if(timer == current_timer) {
-        setTimer(timer_index);
-      }
-      return;
-    }
-    Serial.print("timer "); Serial.print(timerNames[timer_index]); Serial.println(" set to PWM mode");
-    timer->setPwmMode(255,128);
+void setToPwm() {
+  byte pin = -1;
+  TCB_t * t = current_timer->getTimer();
+  if(t == &TCB0) pin = 6;
+  else if(t == &TCB1) pin = 3;
+  else { Serial.print("TCB2 can not output PWM to a pin"); return; }
+  
+  if(current_timer->getMode() == TCB_CNTMODE_PWM8_gc) {
+    Serial.print("timer "); Serial.print(timerNames[timerIndex]); Serial.println(" set back to timer compare mode");
+    current_timer->setTimerMode();
+    setTimer(timerIndex);
+    return;
   }
-  Serial.print("analogWrite("); Serial.print(pin); Serial.println(",60);");
-  analogWrite(pin,60);
+
+  pinMode(pin,OUTPUT);
+  Serial.print("timer "); Serial.print(timerNames[timerIndex]); Serial.print(" set to PWM to pin "); Serial.println(pin);
+  pwm8period = 255;
+  pwm8compare = 128;
+  configurePwm();
+}
+
+void configurePwm()
+{
+   current_timer->setPwmMode(pwm8period,pwm8compare);
+   double frequency = current_timer->getClockFrequency() / ((double)(pwm8period) + 1);
+   double dutyCycle = (double)pwm8compare * 100. / (((double) pwm8period) + 1);
+   char * unit = "Hz";
+/* this causes sometimes that wrong frequencies are printed ... ?
+   if(frequency > 1000.) {
+      frequency /= 1000.;
+      unit = "kHz";
+   }
+   if(frequency > 1000.) {
+      frequency /= 1000.;
+      unit = "MHz";
+   }
+*/
+   Serial.print("setPwmMode("); Serial.print(pwm8period); Serial.print(",");Serial.print(pwm8compare); Serial.print("); ");Serial.print(frequency);Serial.print(unit);Serial.print(" ");Serial.print(dutyCycle);Serial.println("%");
+/*
+// for testing of the getPwm method:
+   double freq,ducy;
+   current_timer->getPwm(freq,ducy);
+   Serial.println(freq);
+   Serial.println(ducy);
+
+// for testing of the setPwm method:
+   current_timer->setPwm(freq,ducy);
+   byte period,compare;
+   current_timer->getPwmMode(period,compare);
+   Serial.println(period);
+   Serial.println(compare);
+*/
 }
 
 #endif defined(EveryTimerB_h_)
+
+void go2xSlower()
+{
+#if defined(EveryTimerB_h_)
+    if(current_timer->getMode() == TCB_CNTMODE_PWM8_gc) {
+      if(pwm8period < 128) pwm8period *= 2;
+      else pwm8period = 255;
+      if(pwm8compare < 128) pwm8compare *= 2;
+      else pwm8compare = 255;
+      configurePwm();
+      return;
+    }
+#endif defined(EveryTimerB_h_)
+  setPeriodIndex(periodIndex+1);
+}
+
+void go2xFaster()
+{
+#if defined(EveryTimerB_h_)
+    if(current_timer->getMode() == TCB_CNTMODE_PWM8_gc) {
+      if(pwm8period > 2) pwm8period /= 2;
+      else pwm8period = 1;
+      if(pwm8compare > 2) pwm8compare /= 2;
+      else pwm8compare = 1;
+      configurePwm();
+      return;
+    }
+#endif defined(EveryTimerB_h_)
+  setPeriodIndex(periodIndex-1);
+}
+
+void goFaster(int step)
+{
+#if defined(EveryTimerB_h_)
+    if(current_timer->getMode() == TCB_CNTMODE_PWM8_gc) {
+      if(pwm8compare > 1) pwm8compare /= 2;
+      else pwm8compare = 1;
+      configurePwm();
+      return;
+    }
+#endif defined(EveryTimerB_h_)
+  setPeriod(period-step);
+}
+
+void goSlower(int step)
+{
+#if defined(EveryTimerB_h_)
+    if(current_timer->getMode() == TCB_CNTMODE_PWM8_gc) {
+      if(pwm8compare < (pwm8period/2)) pwm8compare *= 2;
+      else pwm8compare = pwm8period;
+      configurePwm();
+      return;
+    }
+#endif defined(EveryTimerB_h_)
+  setPeriod(period+step);
+}
 
 // setup
 void setup() {
@@ -297,14 +393,14 @@ void loop() {
     char c = Serial.read();
     switch(c)
     {
-      case '-': setPeriodIndex(periodIndex+1);     break; // slower
-      case '+': setPeriodIndex(periodIndex-1);     break; // faster
+      case '-': go2xSlower();                      break; // slower
+      case '+': go2xFaster();                      break; // faster
       case 'e': enableClock(!clockEnabled);        break; // stop clock
       case 'm': showMicros = !showMicros;          break; // change micros <--> millis
-      case 'u': setPeriod(period+4);               break; // period up
-      case 'U': setPeriod(period+1);               break; // period up
-      case 'd': setPeriod(period-4);               break; // period down
-      case 'D': setPeriod(period-1);               break; // period down
+      case 'u': goSlower(4);                       break; // period up
+      case 'U': goSlower(1);                       break; // period up
+      case 'd': goFaster(4);                       break; // period down
+      case 'D': goFaster(1);                       break; // period down
 #if defined(EveryTimerB_h_)
       case 's': setStutter(!stutter);              break;
       case 'l': setCallMicrosInLoop(!concurtest);  break;
@@ -312,11 +408,7 @@ void loop() {
       case 't': setTimer(timerIndex+1);            break; // switch clock
       case 'r': roundPeriod();                     break; // set remainder to 0
       case 'o': matchOverflow();                   break; // no overflow
-      case '3': setToPwm(3);                       break; // no overflow
-      case '5': setToPwm(5);                       break; // no overflow
-      case '6': setToPwm(6);                       break; // no overflow
-      case '9': setToPwm(9);                       break; // no overflow
-      case '0': setToPwm(10);                      break; // no overflow
+      case 'p': setToPwm( );                       break; // no overflow
 #endif defined(EveryTimerB_h_)
     }
   }

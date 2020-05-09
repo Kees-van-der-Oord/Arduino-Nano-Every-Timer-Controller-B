@@ -134,6 +134,20 @@ class EveryTimerB
       return timer->CTRLA & (TCB_CLKSEL_CLKTCA_gc|TCB_CLKSEL_CLKDIV2_gc|TCB_CLKSEL_CLKDIV1_gc);
     }
 
+    double getFrequencyOfClock(TCB_CLKSEL_t clock) {
+      switch(clock) {
+        // suppose nobody touched the default TCA configuration ...
+        case TCB_CLKSEL_CLKTCA_gc:  return double(F_CPU/64); break;
+        case TCB_CLKSEL_CLKDIV2_gc: return double(F_CPU/2); break;
+        case TCB_CLKSEL_CLKDIV1_gc: return double(F_CPU); break;
+      }
+      return 0.0;
+    }
+
+    double getClockFrequency() {
+      return getFrequencyOfClock(getClockSource());
+    }
+
     // setPeriod: sets the period
     // note: max and min values are different for each clock 
     // CLKTCA: conversion from us to ticks multiplies 'period' first with 10, so max value is MAX_ULONG/10 ~ 1 hr 11 minutes 34 seconds
@@ -264,21 +278,53 @@ class EveryTimerB
       timer->CTRLB &= ~TCB_CCMPEN_bm;
     }
 
-	// this will start PWM on pin 6 (TCB0) or pin 3 (TCB1)
-	// set the pins to output with setMode(x,OUTPUT) before calling this function
-	// period determines the clock ticks in one cycle:
-	//  16MHz clock: slowest frequency at 255 = 62 kHz.
-	//   8MHz clock: slowest frequency at 255 = 31 kHz.
-	// 256kHz clock: slowest frequency at 255 =  1 kHz.
-	// compare determines the duty cycle.
-	// with a period of 255, set the compare to 128 to get 50% duty cycle.
+    // this will start PWM on pin 6 (TCB0) or pin 3 (TCB1)
+    // set the pins to output with setMode(x,OUTPUT) before calling this function
+    // period determines the clock ticks in one cycle:
+    //  16MHz clock: slowest frequency at 255 = 62 kHz.
+    //   8MHz clock: slowest frequency at 255 = 31 kHz.
+    // 256kHz clock: slowest frequency at 255 =  1 kHz.
+    // compare determines the duty cycle.
+    // with a period of 255, set the compare to 128 to get 50% duty cycle.
     void setPwmMode(byte period, byte compare) {
-      disableInterrupt();
-      setMode(TCB_CNTMODE_PWM8_gc);
-      timer->CCMPL = period; 
-      timer->CCMPH = compare;
-      enableOutput();
-      enable();
+    	disableInterrupt();
+    	setMode(TCB_CNTMODE_PWM8_gc);
+    	timer->CCMPL = period;
+    	timer->CCMPH = compare;
+    	enableOutput();
+    	enable();
+    }
+
+    void getPwmMode(byte & period, byte & compare) {
+      period = timer->CCMPL;
+      compare = timer->CCMPH;
+    }
+
+    void setPwm(double frequency, double dutyCycle) {
+      TCB_CLKSEL_t clockSource = TCB_CLKSEL_CLKDIV1_gc;
+      double clockFrequency = getFrequencyOfClock(clockSource);
+      if(frequency < (clockFrequency/256.)) {
+        clockSource = TCB_CLKSEL_CLKDIV2_gc;
+        clockFrequency = getFrequencyOfClock(clockSource);
+      }
+      if(frequency < (clockFrequency/256.)) {
+        clockSource = TCB_CLKSEL_CLKTCA_gc;
+        clockFrequency = getFrequencyOfClock(clockSource);
+      }
+      double period = (clockFrequency / frequency) - 1.0 + 0.5;
+      if(period > 255.) period = 255.;
+      if(period < 0.) period = 0.0;
+      double compare = period * dutyCycle + 0.5;
+      if(compare < 0.0) compare = 0.0;
+      if(compare > period) compare = period;
+      setPwmMode((byte)(period),(byte)(compare));
+    }
+
+    void getPwm(double & frequency, double & dutyCycle) {
+      byte period, compare;
+      getPwmMode(period,compare);
+      frequency = getClockFrequency() / (((double)period) + 1);
+      dutyCycle = (double) compare / (((double)period) + 1);
     }
 
     void setTimerMode() {
