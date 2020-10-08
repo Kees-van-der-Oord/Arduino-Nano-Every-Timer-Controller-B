@@ -131,7 +131,7 @@ class EveryTimerB
     }
 
     TCB_CLKSEL_t getClockSource() {
-      return timer->CTRLA & (TCB_CLKSEL_CLKTCA_gc|TCB_CLKSEL_CLKDIV2_gc|TCB_CLKSEL_CLKDIV1_gc);
+      return (TCB_CLKSEL_t) (timer->CTRLA & (TCB_CLKSEL_CLKTCA_gc|TCB_CLKSEL_CLKDIV2_gc|TCB_CLKSEL_CLKDIV1_gc));
     }
 
     double getFrequencyOfClock(TCB_CLKSEL_t clock) {
@@ -259,7 +259,7 @@ class EveryTimerB
     }
 
     TCB_CNTMODE_enum getMode() __attribute__((always_inline)) {
-      return timer->CTRLB & 0x7;
+      return (TCB_CNTMODE_enum) (timer->CTRLB & 0x7);
     }
 
     void setMode(TCB_CNTMODE_enum mode) __attribute__((always_inline)) {
@@ -377,7 +377,7 @@ private:
     long overflowCounts = 0;
     long remainder = 10;
     long overflowCounter = 0;
-    unsigned short countsPerOverflow = TCB_RESOLUTION - 1;
+    unsigned short countsPerOverflow = (unsigned short) (TCB_RESOLUTION - 1);
     void (*isrCallback)();
     static void isrDefaultUnused();
     unsigned long maxTimeWithoutOverflow;
