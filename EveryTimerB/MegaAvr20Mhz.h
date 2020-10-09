@@ -121,6 +121,6 @@ inline unsigned long corrected_millis() {
 }
 #define millis corrected_millis
 
-#endif defined(ARDUINO_ARCH_MEGAAVR) && (F_CPU == 20000000UL) && defined(MILLIS_USE_TIMERB3)
+#endif // defined(ARDUINO_ARCH_MEGAAVR) && (F_CPU == 20000000UL) && defined(MILLIS_USE_TIMERB3)
 
-#endif !defined(MegaAvr20MHz_h_)
+#endif // !defined(MegaAvr20MHz_h_)

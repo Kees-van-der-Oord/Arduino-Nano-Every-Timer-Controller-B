@@ -131,7 +131,7 @@ class EveryTimerB
     }
 
     TCB_CLKSEL_t getClockSource() {
-      return (TCB_CLKSEL_t) (timer->CTRLA & (TCB_CLKSEL_CLKTCA_gc|TCB_CLKSEL_CLKDIV2_gc|TCB_CLKSEL_CLKDIV1_gc));
+      return (TCB_CLKSEL_t)(timer->CTRLA & (TCB_CLKSEL_CLKTCA_gc|TCB_CLKSEL_CLKDIV2_gc|TCB_CLKSEL_CLKDIV1_gc));
     }
 
     double getFrequencyOfClock(TCB_CLKSEL_t clock) {
@@ -377,7 +377,7 @@ private:
     long overflowCounts = 0;
     long remainder = 10;
     long overflowCounter = 0;
-    unsigned short countsPerOverflow = (unsigned short) (TCB_RESOLUTION - 1);
+    unsigned long countsPerOverflow = TCB_RESOLUTION - 1;
     void (*isrCallback)();
     static void isrDefaultUnused();
     unsigned long maxTimeWithoutOverflow;
@@ -386,5 +386,5 @@ private:
 
 extern EveryTimerB TimerB2;
 
-#endif ARDUINO_ARCH_MEGAAVR
-#endif EveryTimerB_h_
+#endif // ARDUINO_ARCH_MEGAAVR
+#endif // EveryTimerB_h_

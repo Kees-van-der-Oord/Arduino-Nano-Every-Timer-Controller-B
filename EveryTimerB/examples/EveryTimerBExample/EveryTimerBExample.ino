@@ -41,7 +41,7 @@ TCB_CLKSEL_t clocks[3] = {TCB_CLKSEL_CLKTCA_gc,TCB_CLKSEL_CLKDIV2_gc,TCB_CLKSEL_
 const char * clockNames[3] = {"CLKTCA","CLKDIV2","CLKDIV1"};
 byte         clockIndex = 0;
 
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
 
 // store current settings
 unsigned long period = 1000000UL;
@@ -144,7 +144,7 @@ void setPeriod(unsigned long newPeriod) {
   enableClock(true);  
 #if defined(EveryTimerB_h_)
   Serial.print("overflowCounts "); Serial.print(Timer1.getOverflowCounts()); Serial.print(" remainder "); Serial.println(Timer1.getRemainder());
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
 }
 
 #if defined(EveryTimerB_h_)
@@ -280,7 +280,7 @@ void configurePwm()
 */
 }
 
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
 
 void go2xSlower()
 {
@@ -293,7 +293,7 @@ void go2xSlower()
       configurePwm();
       return;
     }
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
   setPeriodIndex(periodIndex+1);
 }
 
@@ -308,7 +308,7 @@ void go2xFaster()
       configurePwm();
       return;
     }
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
   setPeriodIndex(periodIndex-1);
 }
 
@@ -321,7 +321,7 @@ void goFaster(int step)
       configurePwm();
       return;
     }
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
   setPeriod(period-step);
 }
 
@@ -334,7 +334,7 @@ void goSlower(int step)
       configurePwm();
       return;
     }
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
   setPeriod(period+step);
 }
 
@@ -345,7 +345,7 @@ void setup() {
   Serial.print("commands: +: faster, -: slower, e: enable/disable");
 #if defined(EveryTimerB_h_)
   Serial.print(" c: change clock source, t: change timer"); 
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
   Serial.println("");
   Serial.print("F_CPU  : "); Serial.println(F_CPU);
 
@@ -366,7 +366,7 @@ void setup() {
   Timer1.initialize();
   Timer1.attachInterrupt(myisr);
   setPeriodIndex(periodIndex);
-#endif !defined(EveryTimerB_h_)
+#endif // !defined(EveryTimerB_h_)
 }
 
 // use volatile to prevent the compiler to remove assignment of
@@ -409,7 +409,7 @@ void loop() {
       case 'r': roundPeriod();                     break; // set remainder to 0
       case 'o': matchOverflow();                   break; // no overflow
       case 'p': setToPwm( );                       break; // no overflow
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
     }
   }
 }
@@ -432,4 +432,4 @@ ISR(TCB1_INT_vect)
 
 // for the TimerB2, this code is in the library cpp file
 
-#endif defined(EveryTimerB_h_)
+#endif // defined(EveryTimerB_h_)
